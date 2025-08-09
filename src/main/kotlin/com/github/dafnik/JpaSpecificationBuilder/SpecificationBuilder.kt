@@ -1,6 +1,6 @@
 @file:Suppress("PackageName")
 
-package me.dafnik.JpaSpecificationBuilder
+package com.github.dafnik.JpaSpecificationBuilder
 
 import jakarta.persistence.criteria.CriteriaBuilder
 import jakarta.persistence.criteria.From

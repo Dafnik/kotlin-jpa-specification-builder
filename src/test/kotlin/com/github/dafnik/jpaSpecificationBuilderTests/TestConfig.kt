@@ -1,4 +1,4 @@
-package me.dafnik.jpaSpecificationBuilderTests
+package com.github.dafnik.jpaSpecificationBuilderTests
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 

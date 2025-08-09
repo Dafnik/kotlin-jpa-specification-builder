@@ -1,6 +1,6 @@
-package me.dafnik.jpaSpecificationBuilderTests.repositories
+package com.github.dafnik.jpaSpecificationBuilderTests.repositories
 
-import me.dafnik.jpaSpecificationBuilderTests.models.User
+import com.github.dafnik.jpaSpecificationBuilderTests.models.User
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.stereotype.Repository

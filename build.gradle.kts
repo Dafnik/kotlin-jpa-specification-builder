@@ -1,4 +1,4 @@
-group = "me.dafnik"
+group = "com.github.dafnik"
 version = project.findProperty("version")?.toString() ?: "0.0.1-SNAPSHOT"
 
 kotlin {
@@ -62,18 +62,13 @@ configurations.detekt {
     }
 }
 
-tasks.getByName<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
-    enabled = false
-}
-
-tasks.getByName<Jar>("jar") {
-    enabled = true
-}
+tasks.named("bootJar") { enabled = false }
+tasks.jar { enabled = true }
 
 publishing {
     publications {
         create<MavenPublication>("maven") {
-            groupId = "me.dafnik"
+            groupId = "com.github.dafnik"
             artifactId = "kotlin-jpa-specification-builder"
             version = project.findProperty("version")?.toString() ?: "0.0.1-SNAPSHOT"
 

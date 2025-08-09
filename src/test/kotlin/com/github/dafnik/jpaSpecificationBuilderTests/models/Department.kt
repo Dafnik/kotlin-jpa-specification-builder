@@ -1,4 +1,4 @@
-package me.dafnik.jpaSpecificationBuilderTests.models
+package com.github.dafnik.jpaSpecificationBuilderTests.models
 
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
