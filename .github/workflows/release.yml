@@ -3,7 +3,6 @@ name: Build and release
 on:
   push:
     tags:
-      - '*.*.*-beta-*'
       - '*.*.*'
 
 # We must only run one release workflow at a time to prevent corrupting
@@ -11,3 +10,28 @@ on:
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Build with Gradle
+        run: ./gradlew clean build
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,13 +1,15 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "me.dafnik"
-version = "1.0-SNAPSHOT"
+version = "1.0.0"
 
 kotlin {
     jvmToolchain(21)
 }
 
 plugins {
+    `maven-publish`
+
     kotlin("jvm") version "2.2.0"
     kotlin("plugin.spring") version "2.2.0"
 
@@ -31,6 +33,16 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+val compileTestKotlin: KotlinCompile by tasks
+compileTestKotlin.compilerOptions {
+    freeCompilerArgs.set(listOf("-Xannotation-default-target=param-property"))
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
 tasks.test {
     useJUnitPlatform()
 }
@@ -52,7 +64,14 @@ configurations.detekt {
     }
 }
 
-val compileTestKotlin: KotlinCompile by tasks
-compileTestKotlin.compilerOptions {
-    freeCompilerArgs.set(listOf("-Xannotation-default-target=param-property"))
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            groupId = "me.dafnik"
+            artifactId = "kotlin-jpa-specification-builder"
+            version = "1.0.0"
+
+            from(components["java"])
+        }
+    }
 }
