@@ -27,7 +27,7 @@ jobs:
           cache: gradle
 
       - name: Build with Gradle
-        run: ./gradlew clean build
+        run: ./gradlew clean jar
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
