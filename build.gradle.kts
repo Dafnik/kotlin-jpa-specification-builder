@@ -2,7 +2,7 @@ group = "com.github.dafnik"
 version = project.findProperty("version")?.toString() ?: "0.0.1-SNAPSHOT"
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(17)
 }
 
 plugins {
