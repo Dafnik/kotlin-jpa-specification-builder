@@ -67,6 +67,7 @@ configurations.detekt {
 
 tasks.getByName<Jar>("jar") {
     enabled = true
+    archiveClassifier.set("") // removes "-plain"
 }
 
 tasks.getByName<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
