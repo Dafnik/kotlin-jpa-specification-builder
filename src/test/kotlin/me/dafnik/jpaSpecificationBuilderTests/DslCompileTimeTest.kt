@@ -1,4 +1,4 @@
-package com.github.dafnik.jpaSpecificationBuilderTests
+package me.dafnik.jpaSpecificationBuilderTests
 
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
@@ -12,8 +12,8 @@ class DslCompileTimeTest {
     fun `invalid DSL usage should fail compilation`() {
         val source = SourceFile.kotlin(
             "InvalidDsl.kt", """
-            import com.github.dafnik.JpaSpecificationBuilder.*
-            import com.github.dafnik.jpaSpecificationBuilderTests.models.User
+            import me.dafnik.JpaSpecificationBuilder.*
+            import me.dafnik.jpaSpecificationBuilderTests.models.User
 
             fun test() {
                 buildSpecification<User> {
@@ -39,8 +39,8 @@ class DslCompileTimeTest {
     fun `valid DSL usage should compile`() {
         val source = SourceFile.kotlin(
             "ValidDsl.kt", """
-            import com.github.dafnik.JpaSpecificationBuilder.*
-            import com.github.dafnik.jpaSpecificationBuilderTests.models.User
+            import me.dafnik.JpaSpecificationBuilder.*
+            import me.dafnik.jpaSpecificationBuilderTests.models.User
 
             fun test() {
                 buildSpecification<User> {

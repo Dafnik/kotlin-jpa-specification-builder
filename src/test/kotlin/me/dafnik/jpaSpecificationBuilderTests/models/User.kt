@@ -1,4 +1,4 @@
-package com.github.dafnik.jpaSpecificationBuilderTests.models
+package me.dafnik.jpaSpecificationBuilderTests.models
 
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType

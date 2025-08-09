@@ -1,12 +1,12 @@
-package com.github.dafnik.jpaSpecificationBuilderTests
+package me.dafnik.jpaSpecificationBuilderTests
 
 import jakarta.transaction.Transactional
-import com.github.dafnik.JpaSpecificationBuilder.OrderDirection
-import com.github.dafnik.JpaSpecificationBuilder.buildSpecification
-import com.github.dafnik.jpaSpecificationBuilderTests.models.Department
-import com.github.dafnik.jpaSpecificationBuilderTests.models.User
-import com.github.dafnik.jpaSpecificationBuilderTests.repositories.DepartmentRepository
-import com.github.dafnik.jpaSpecificationBuilderTests.repositories.UserRepository
+import me.dafnik.JpaSpecificationBuilder.OrderDirection
+import me.dafnik.JpaSpecificationBuilder.buildSpecification
+import me.dafnik.jpaSpecificationBuilderTests.models.Department
+import me.dafnik.jpaSpecificationBuilderTests.models.User
+import me.dafnik.jpaSpecificationBuilderTests.repositories.DepartmentRepository
+import me.dafnik.jpaSpecificationBuilderTests.repositories.UserRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

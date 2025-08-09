@@ -1,4 +1,4 @@
-group = "com.github.dafnik"
+group = "me.dafnik"
 version = project.findProperty("version")?.toString() ?: "0.0.1-SNAPSHOT"
 
 kotlin {
@@ -71,7 +71,7 @@ configurations.detekt {
 
 tasks.getByName<Jar>("jar") {
     enabled = true
-    archiveClassifier.set("") // removes "-plain"
+    archiveClassifier.set("") // removes "-plain" to work with jitpack
 }
 
 tasks.getByName<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
@@ -81,7 +81,7 @@ tasks.getByName<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar
 publishing {
     publications {
         create<MavenPublication>("maven") {
-            groupId = "com.github.dafnik"
+            groupId = "me.dafnik"
             artifactId = "kotlin-jpa-specification-builder"
             version = project.findProperty("version")?.toString() ?: "0.0.1-SNAPSHOT"
 
