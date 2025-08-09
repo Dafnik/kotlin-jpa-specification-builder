@@ -1,6 +1,10 @@
 {
-  "assignees": ["Dafnik"],
-  "baseBranches": ["main"],
+  "assignees": [
+    "Dafnik"
+  ],
+  "baseBranchPatterns": [
+    "main"
+  ],
   "commitBody": "See associated pull request for more information.",
   "extends": [
     "config:recommended",
@@ -9,7 +13,9 @@
     ":rebaseStalePrs",
     ":semanticCommitTypeAll(chore)"
   ],
-  "labels": ["dependencies"],
+  "labels": [
+    "dependencies"
+  ],
   "lockFileMaintenance": {
     "automerge": true,
     "automergeType": "branch",
@@ -20,15 +26,22 @@
   "packageRules": [
     {
       "groupName": "spring boot",
-      "matchDepNames": ["org.springframework.boot", "org.springframework.boot:**"]
+      "matchDepNames": [
+        "org.springframework.boot",
+        "org.springframework.boot:**"
+      ]
     },
     {
       "groupName": "Kotlin dependencies",
-      "matchPackageNames": ["/^org\\.jetbrains\\.kotlin/"]
+      "matchPackageNames": [
+        "/^org\\.jetbrains\\.kotlin/"
+      ]
     }
   ],
   "prHourlyLimit": 5,
-  "schedule": ["* * 1,15 * *"],
+  "schedule": [
+    "* * 1,15 * *"
+  ],
   "semanticCommitScope": "",
   "semanticCommitType": "build",
   "semanticCommits": "enabled",
