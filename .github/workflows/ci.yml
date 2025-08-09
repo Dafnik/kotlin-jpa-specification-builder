@@ -55,4 +55,4 @@ jobs:
           cache: gradle
 
       - name: Test
-        run: ./gradlew test
+        run: ./gradlew jpaSpecificationBuilderTests

@@ -1,4 +1,4 @@
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
-rootProject.name = "kotlin-jpa-specification-dsl"
+rootProject.name = "kotlin-jpa-specification-builder"

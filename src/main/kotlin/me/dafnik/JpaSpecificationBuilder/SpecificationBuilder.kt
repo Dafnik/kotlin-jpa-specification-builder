@@ -1,4 +1,6 @@
-package me.dafnik.kotlinJpaSpecificationDsl
+@file:Suppress("PackageName")
+
+package me.dafnik.JpaSpecificationBuilder
 
 import jakarta.persistence.criteria.CriteriaBuilder
 import jakarta.persistence.criteria.From
@@ -30,9 +32,9 @@ class ConditionNode<T>(val condition: ColumnCondition<T>) : PredicateNode<T>
 class JoinNode<P, C>(val path: String, val builder: ConditionBuilder<C>) : PredicateNode<P>
 
 @DslMarker
-annotation class SpecDsl
+annotation class SpecificationDsl
 
-@SpecDsl
+@SpecificationDsl
 class ConditionBuilder<T> {
     private var nodes = mutableListOf<PredicateNode<T>>()
 
@@ -149,8 +151,8 @@ class ConditionBuilder<T> {
     }
 }
 
-@SpecDsl
-class SpecBuilder<T> {
+@SpecificationDsl
+class SpecificationBuilder<T> {
     var distinct: Boolean = false
     private var whereBuilder: ConditionBuilder<T>? = null
     private var groupByProps: List<String> = emptyList()
@@ -209,5 +211,5 @@ private fun resolvePath(from: From<*, *>, path: String): Path<*> {
     return current
 }
 
-fun <T> specBuilder(block: SpecBuilder<T>.() -> Unit): Specification<T> =
-    SpecBuilder<T>().apply(block).toSpecification()
+fun <T> buildSpecification(block: SpecificationBuilder<T>.() -> Unit): Specification<T> =
+    SpecificationBuilder<T>().apply(block).toSpecification()
