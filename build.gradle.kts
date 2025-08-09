@@ -31,7 +31,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
     // Jakarta Persistence API (Criteria API)
-    implementation("jakarta.persistence:jakarta.persistence-api:3.1.0")
+    implementation("jakarta.persistence:jakarta.persistence-api:3.2.0")
 
     // Optional: For testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")
