@@ -46,7 +46,11 @@ class SpecificationBuilderTest(
         assertThat(
             userRepository.findAll(
                 buildSpecification<User> {
-                    where { col(User::name) eq "John Doe" }
+                    where {
+                        and {
+                            col(User::name) eq "John Doe"
+                        }
+                    }
                 }
             )
         ).extracting("name").containsExactly("John Doe")
@@ -55,41 +59,69 @@ class SpecificationBuilderTest(
     @Test
     fun `neq should exclude exact value`() {
         assertThat(userRepository.findAll(buildSpecification<User> {
-            where { col(User::name) notEq "John Doe" }
+            where {
+                and {
+                    col(User::name) notEq "John Doe"
+                }
+            }
         })).noneMatch { it.name == "John Doe" }
     }
 
     @Test
     fun `like should match case-insensitive`() {
         assertThat(userRepository.findAll(buildSpecification<User> {
-            where { col(User::name) like "john" }
+            where {
+                and {
+                    col(User::name) like "john"
+                }
+            }
         })).extracting("name").containsExactly("John Doe")
     }
 
     @Test
     fun `like with null or blank should match all`() {
-        assertThat(userRepository.findAll(buildSpecification<User> { where { col(User::name) like null } })).hasSize(5)
-        assertThat(userRepository.findAll(buildSpecification<User> { where { col(User::name) like "" } })).hasSize(5)
+        assertThat(userRepository.findAll(buildSpecification<User> { where {
+            and {
+                col(User::name) like null
+            }
+        } })).hasSize(5)
+        assertThat(userRepository.findAll(buildSpecification<User> { where {
+            and {
+                col(User::name) like ""
+            }
+        } })).hasSize(5)
     }
 
     @Test
     fun `isNull should match null values`() {
         assertThat(userRepository.findAll(buildSpecification<User> {
-            where { col(User::name).isNull() }
+            where {
+                and {
+                    col(User::name).isNull()
+                }
+            }
         })).allMatch { it.name == null }
     }
 
     @Test
     fun `notNull should match non-null values`() {
         assertThat(userRepository.findAll(buildSpecification<User> {
-            where { col(User::name).notNull() }
+            where {
+                and {
+                    col(User::name).notNull()
+                }
+            }
         })).allMatch { it.name != null }
     }
 
     @Test
     fun `inList should match multiple values`() {
         assertThat(userRepository.findAll(buildSpecification<User> {
-            where { col(User::name) inList listOf("John Doe", "Alice") }
+            where {
+                and {
+                    col(User::name) inList listOf("John Doe", "Alice")
+                }
+            }
         })).extracting("name").containsExactlyInAnyOrder("John Doe", "Alice")
     }
 
@@ -98,7 +130,11 @@ class SpecificationBuilderTest(
     @Test
     fun `string path eq should work`() {
         assertThat(userRepository.findAll(buildSpecification<User> {
-            where { col("name") eq "John Doe" }
+            where {
+                and {
+                    col("name") eq "John Doe"
+                }
+            }
         })).extracting("name").containsExactly("John Doe")
     }
 
@@ -107,7 +143,9 @@ class SpecificationBuilderTest(
         assertThat(userRepository.findAll(buildSpecification<User> {
             where {
                 join<Department>("department") {
-                    col("name") eq "Engineering"
+                    and {
+                        col("name") eq "Engineering"
+                    }
                 }
             }
         })).allMatch { it.department?.name == "Engineering" }
@@ -118,7 +156,9 @@ class SpecificationBuilderTest(
         assertThat(userRepository.findAll(buildSpecification<User> {
             where {
                 join<Department>("department") {
-                    col("name") like "engineer"
+                    and {
+                        col("name") like "engineer"
+                    }
                 }
             }
         })).allMatch { it.department?.name == "Engineering" }
@@ -131,7 +171,9 @@ class SpecificationBuilderTest(
         assertThat(userRepository.findAll(buildSpecification {
             where {
                 join(User::department) {
-                    col(Department::name) eq "Engineering"
+                    and {
+                        col(Department::name) eq "Engineering"
+                    }
                 }
             }
         })).allMatch { it.department?.name == "Engineering" }
@@ -142,7 +184,9 @@ class SpecificationBuilderTest(
         assertThat(userRepository.findAll(buildSpecification {
             where {
                 join(User::department) {
-                    col(Department::name) like "engineer"
+                    and {
+                        col(Department::name) like "engineer"
+                    }
                 }
             }
         })).allMatch { it.department?.name == "Engineering" }
@@ -180,7 +224,9 @@ class SpecificationBuilderTest(
     fun `col in where without and`() {
         assertThat(userRepository.findAll(buildSpecification<User> {
             where {
-                col(User::age) eq 30
+                and {
+                    col(User::age) eq 30
+                }
             }
         })).extracting("age").containsExactly(30)
     }

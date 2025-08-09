@@ -31,32 +31,56 @@ class OrNode<T>(val children: List<PredicateNode<*>>) : PredicateNode<T>
 class ConditionNode<T>(val condition: ColumnCondition<T>) : PredicateNode<T>
 class JoinNode<P, C>(val path: String, val builder: ConditionBuilder<C>) : PredicateNode<P>
 
+// DSL markers for better IntelliJ suggestions
 @DslMarker
-annotation class SpecificationDsl
+annotation class WhereDsl
 
-@SpecificationDsl
-class ConditionBuilder<T> {
-    private var nodes = mutableListOf<PredicateNode<T>>()
+@DslMarker
+annotation class LogicalDsl
 
-    /** Column by property reference */
+@DslMarker
+annotation class ColumnDsl
+
+@WhereDsl
+class WhereBuilder<T> {
+    internal val nodes = mutableListOf<PredicateNode<T>>()
+
+    fun and(block: LogicalBuilder<T>.() -> Unit) {
+        val childBuilder = LogicalBuilder<T>().apply(block)
+        nodes += AndNode(childBuilder.nodes)
+    }
+
+    fun or(block: LogicalBuilder<T>.() -> Unit) {
+        val childBuilder = LogicalBuilder<T>().apply(block)
+        nodes += OrNode(childBuilder.nodes)
+    }
+
+    fun <R> join(prop: KProperty1<T, R>, block: WhereBuilder<R>.() -> Unit) {
+        val joinName = prop.name
+        val childBuilder = WhereBuilder<R>().apply(block)
+        nodes += JoinNode(joinName, childBuilder.toConditionBuilder())
+    }
+
+    fun <R> join(path: String, block: WhereBuilder<R>.() -> Unit) {
+        val childBuilder = WhereBuilder<R>().apply(block)
+        nodes += JoinNode(path, childBuilder.toConditionBuilder())
+    }
+
+    internal fun toConditionBuilder(): ConditionBuilder<T> {
+        val cb = ConditionBuilder<T>()
+        cb.nodes.addAll(nodes)
+        return cb
+    }
+}
+
+@LogicalDsl
+class LogicalBuilder<T> {
+    internal val nodes = mutableListOf<PredicateNode<T>>()
+
     fun col(prop: KProperty1<out Any?, *>) = ColumnBuilder(prop.name)
-
-    /** Column by string path */
     fun col(path: String) = ColumnBuilder(path)
 
-    /** Join by property reference */
-    fun <R> join(prop: KProperty1<T, R>, block: ConditionBuilder<R>.() -> Unit) {
-        val joinName = prop.name
-        val childBuilder = ConditionBuilder<R>().apply(block)
-        nodes += JoinNode(joinName, childBuilder)
-    }
-
-    /** Join by string path */
-    fun <R> join(path: String, block: ConditionBuilder<R>.() -> Unit) {
-        val childBuilder = ConditionBuilder<R>().apply(block)
-        nodes += JoinNode(path, childBuilder)
-    }
-
+    @ColumnDsl
     inner class ColumnBuilder(private val path: String) {
         infix fun eq(value: Any?) {
             if (value != null) {
@@ -91,15 +115,36 @@ class ConditionBuilder<T> {
         }
     }
 
-    fun and(block: ConditionBuilder<T>.() -> Unit) {
-        val childBuilder = ConditionBuilder<T>().apply(block)
+    fun and(block: LogicalBuilder<T>.() -> Unit) {
+        val childBuilder = LogicalBuilder<T>().apply(block)
         nodes += AndNode(childBuilder.nodes)
     }
 
-    fun or(block: ConditionBuilder<T>.() -> Unit) {
-        val childBuilder = ConditionBuilder<T>().apply(block)
+    fun or(block: LogicalBuilder<T>.() -> Unit) {
+        val childBuilder = LogicalBuilder<T>().apply(block)
         nodes += OrNode(childBuilder.nodes)
     }
+
+    fun <R> join(prop: KProperty1<T, R>, block: LogicalBuilder<R>.() -> Unit) {
+        val joinName = prop.name
+        val childBuilder = LogicalBuilder<R>().apply(block)
+        nodes += JoinNode(joinName, childBuilder.toConditionBuilder())
+    }
+
+    fun <R> join(path: String, block: LogicalBuilder<R>.() -> Unit) {
+        val childBuilder = LogicalBuilder<R>().apply(block)
+        nodes += JoinNode(path, childBuilder.toConditionBuilder())
+    }
+
+    internal fun toConditionBuilder(): ConditionBuilder<T> {
+        val cb = ConditionBuilder<T>()
+        cb.nodes.addAll(nodes)
+        return cb
+    }
+}
+
+class ConditionBuilder<T> {
+    internal val nodes = mutableListOf<PredicateNode<T>>()
 
     @Suppress("SpreadOperator")
     internal fun build(from: From<*, *>, cb: CriteriaBuilder): Predicate? {
@@ -151,15 +196,15 @@ class ConditionBuilder<T> {
     }
 }
 
-@SpecificationDsl
+@WhereDsl
 class SpecificationBuilder<T> {
     var distinct: Boolean = false
-    private var whereBuilder: ConditionBuilder<T>? = null
+    private var whereBuilder: WhereBuilder<T>? = null
     private var groupByProps: List<String> = emptyList()
     private val orderByList: MutableList<Pair<String, OrderDirection>> = mutableListOf()
 
-    fun where(block: ConditionBuilder<T>.() -> Unit) {
-        whereBuilder = ConditionBuilder<T>().apply(block)
+    fun where(block: WhereBuilder<T>.() -> Unit) {
+        whereBuilder = WhereBuilder<T>().apply(block)
     }
 
     fun groupBy(vararg props: KProperty1<T, *>) {
@@ -194,7 +239,7 @@ class SpecificationBuilder<T> {
             )
         }
 
-        whereBuilder?.build(root, cb)
+        whereBuilder?.toConditionBuilder()?.build(root, cb)
     }
 }
 
