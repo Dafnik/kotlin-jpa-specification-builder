@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 group = "me.dafnik"
 version = "1.0-SNAPSHOT"
 
@@ -48,4 +50,9 @@ configurations.detekt {
             useVersion("2.0.21") // Add the version of Kotlin that detekt needs
         }
     }
+}
+
+val compileTestKotlin: KotlinCompile by tasks
+compileTestKotlin.compilerOptions {
+    freeCompilerArgs.set(listOf("-Xannotation-default-target=param-property"))
 }
