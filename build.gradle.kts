@@ -1,7 +1,5 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 group = "me.dafnik"
-version = "1.0.0"
+version = project.findProperty("version")?.toString() ?: "0.0.1-SNAPSHOT"
 
 kotlin {
     jvmToolchain(21)
@@ -33,7 +31,7 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
-val compileTestKotlin: KotlinCompile by tasks
+val compileTestKotlin: org.jetbrains.kotlin.gradle.tasks.KotlinCompile by tasks
 compileTestKotlin.compilerOptions {
     freeCompilerArgs.set(listOf("-Xannotation-default-target=param-property"))
 }
@@ -64,12 +62,20 @@ configurations.detekt {
     }
 }
 
+tasks.getByName<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+    enabled = false
+}
+
+tasks.getByName<Jar>("jar") {
+    enabled = true
+}
+
 publishing {
     publications {
         create<MavenPublication>("maven") {
             groupId = "me.dafnik"
             artifactId = "kotlin-jpa-specification-builder"
-            version = "1.0.0"
+            version = project.findProperty("version")?.toString() ?: "0.0.1-SNAPSHOT"
 
             from(components["java"])
         }
