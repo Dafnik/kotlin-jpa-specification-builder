@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.1.21"
-    kotlin("plugin.spring") version "1.9.23"
+    kotlin("jvm") version "2.2.0"
+    kotlin("plugin.spring") version "1.9.25"
 
     id("io.gitlab.arturbosch.detekt") version "1.23.8"
 
