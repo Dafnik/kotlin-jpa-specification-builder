@@ -68,11 +68,33 @@ class SpecificationBuilderTest(
     }
 
     @Test
-    fun `like should match case-insensitive`() {
+    fun `like should not match`() {
         assertThat(userRepository.findAll(buildSpecification<User> {
             where {
                 and {
                     col(User::name) like "john"
+                }
+            }
+        })).hasSize(0)
+    }
+
+    @Test
+    fun `like should match`() {
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    col(User::name) like "%John%"
+                }
+            }
+        })).extracting("name").containsExactly("John Doe")
+    }
+
+    @Test
+    fun `ilike should match case-insensitive`() {
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    col(User::name) lowercaseLike  "%john%"
                 }
             }
         })).extracting("name").containsExactly("John Doe")
@@ -123,6 +145,166 @@ class SpecificationBuilderTest(
                 }
             }
         })).extracting("name").containsExactlyInAnyOrder("John Doe", "Alice")
+    }
+
+    @Test
+    fun `notLike should exclude matching values`() {
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    col(User::name) notLike "%John%"
+                }
+            }
+        })).noneMatch { it.name?.contains("John") == true }
+    }
+
+    @Test
+    fun `notIlike should exclude case-insensitive matches`() {
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    col(User::name) notLowercaseLike "%john%"
+                }
+            }
+        })).noneMatch { it.name?.lowercase()?.contains("john") == true }
+    }
+
+    @Test
+    fun `between should match values in range`() {
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    col(User::age) between (25..40)
+                }
+            }
+        })).extracting("age").containsExactlyInAnyOrder(25, 30, 40)
+    }
+
+    @Test
+    fun `gt should match values greater than`() {
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    col(User::age) gt 40
+                }
+            }
+        })).extracting("age").containsExactly(50)
+    }
+
+    @Test
+    fun `gte should match values greater than or equal`() {
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    col(User::age) gte 40
+                }
+            }
+        })).extracting("age").containsExactlyInAnyOrder(40, 50)
+    }
+
+    @Test
+    fun `lt should match values less than`() {
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    col(User::age) lt 30
+                }
+            }
+        })).extracting("age").containsExactly(25)
+    }
+
+    @Test
+    fun `lte should match values less than or equal`() {
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    col(User::age) lte 30
+                }
+            }
+        })).extracting("age").containsExactlyInAnyOrder(25, 30)
+    }
+
+    @Test
+    fun `isEmpty should match empty collections`() {
+        // Create a department with no users
+        departmentRepository.save(Department(name = "EmptyDep"))
+
+        assertThat(departmentRepository.findAll(buildSpecification<Department> {
+            where {
+                and {
+                    col(Department::users).isEmpty()
+                }
+            }
+        })).extracting("name").contains("EmptyDep")
+    }
+
+    @Test
+    fun `isNotEmpty should match non-empty collections`() {
+        assertThat(departmentRepository.findAll(buildSpecification<Department> {
+            where {
+                and {
+                    col(Department::users).isNotEmpty()
+                }
+            }
+        })).allMatch { it.users.isNotEmpty() }
+    }
+
+    @Test
+    fun `isTrue should match boolean true`() {
+        // Assuming User has a boolean field `active`
+        userRepository.save(User(name = "Active", age = 20, department = depEng, active = true))
+        userRepository.save(User(name = "Inactive", age = 22, department = depEng, active = false))
+
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    col(User::active).isTrue()
+                }
+            }
+        })).allMatch { it.active }
+    }
+
+    @Test
+    fun `isFalse should match boolean false`() {
+        // Assuming User has a boolean field `active`
+        userRepository.save(User(name = "Active", age = 20, department = depEng, active = true))
+        userRepository.save(User(name = "Inactive", age = 22, department = depEng, active = false))
+
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    col(User::active).isFalse()
+                }
+            }
+        })).allMatch { !it.active }
+    }
+
+    // --- Col extension function tests ---
+
+    @Test
+    fun `eq should match exact value with extension function`() {
+        assertThat(
+            userRepository.findAll(
+                buildSpecification<User> {
+                    where {
+                        and {
+                            User::name.toCol() eq "John Doe"
+                        }
+                    }
+                }
+            )
+        ).extracting("name").containsExactly("John Doe")
+    }
+
+    @Test
+    fun `string path eq should work with extension function`() {
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    "name".toCol() eq "John Doe"
+                }
+            }
+        })).extracting("name").containsExactly("John Doe")
     }
 
     // --- STRING PATH TESTS ---
@@ -200,7 +382,7 @@ class SpecificationBuilderTest(
             where {
                 and {
                     col(User::age) eq 30
-                    col(User::name) like "john"
+                    col(User::name) like "John%"
                 }
             }
         })).extracting("name").containsExactly("John Doe")
@@ -214,7 +396,7 @@ class SpecificationBuilderTest(
                     col(User::age).notNull()
                 }
                 and {
-                    col(User::name) like "john"
+                    col(User::name) like "John%"
                 }
             }
         })).extracting("name").containsExactly("John Doe")
@@ -237,7 +419,7 @@ class SpecificationBuilderTest(
             where {
                 or {
                     col(User::age) eq 50
-                    col(User::name) like "alice"
+                    col(User::name) lowercaseLike  "%alice"
                 }
             }
         })).extracting("name").containsExactlyInAnyOrder("Alice", "Bob")
@@ -250,8 +432,8 @@ class SpecificationBuilderTest(
                 and {
                     col(User::age).notNull()
                     or {
-                        col(User::name) like "john"
-                        col(User::name) like "alice"
+                        col(User::name) lowercaseLike  "john%"
+                        col(User::name) lowercaseLike  "alice%"
                     }
                 }
             }

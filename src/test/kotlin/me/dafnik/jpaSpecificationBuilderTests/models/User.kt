@@ -17,5 +17,7 @@ data class User(
     val age: Int? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    val department: Department? = null
+    val department: Department? = null,
+
+    val active: Boolean = true,
 )

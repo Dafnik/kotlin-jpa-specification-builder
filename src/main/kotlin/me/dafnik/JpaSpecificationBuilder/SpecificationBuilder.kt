@@ -11,7 +11,8 @@ import org.springframework.data.jpa.domain.Specification
 import kotlin.reflect.KProperty1
 
 enum class CompareOp {
-    EQ, NOT_EQ, IS_NULL, NOT_NULL, LIKE, IN
+    EQ, NOT_EQ, IS_NULL, NOT_NULL, LIKE, LOWERCASE_LIKE, IN, BETWEEN, GT, GTE, IS_EMPTY, IS_NOT_EMPTY, IS_TRUE,
+    IS_FALSE, LT, LTE, NOT_LIKE, NOT_LOWERCASE_LIKE
 }
 
 enum class OrderDirection {
@@ -80,6 +81,10 @@ class LogicalBuilder<T> {
     fun col(prop: KProperty1<out Any?, *>) = ColumnBuilder(prop.name)
     fun col(path: String) = ColumnBuilder(path)
 
+    fun KProperty1<out Any?, *>.toCol() = ColumnBuilder(this.name)
+    fun String.toCol() = ColumnBuilder(this)
+
+    @Suppress("TooManyFunctions")
     @ColumnDsl
     inner class ColumnBuilder(private val path: String) {
         infix fun eq(value: Any?) {
@@ -94,12 +99,6 @@ class LogicalBuilder<T> {
             }
         }
 
-        infix fun like(value: String?) {
-            if (!value.isNullOrBlank()) {
-                nodes += ConditionNode(ColumnCondition(path, CompareOp.LIKE, value))
-            }
-        }
-
         fun isNull() {
             nodes += ConditionNode(ColumnCondition(path, CompareOp.IS_NULL))
         }
@@ -108,11 +107,82 @@ class LogicalBuilder<T> {
             nodes += ConditionNode(ColumnCondition(path, CompareOp.NOT_NULL))
         }
 
+        infix fun like(value: String?) {
+            if (!value.isNullOrBlank()) {
+                nodes += ConditionNode(ColumnCondition(path, CompareOp.LIKE, value))
+            }
+        }
+
+        infix fun notLike(value: String?) {
+            if (!value.isNullOrBlank()) {
+                nodes += ConditionNode(ColumnCondition(path, CompareOp.NOT_LIKE, value))
+            }
+        }
+
+        infix fun lowercaseLike(value: String?) {
+            if (!value.isNullOrBlank()) {
+                nodes += ConditionNode(ColumnCondition(path, CompareOp.LOWERCASE_LIKE, value))
+            }
+        }
+
+        infix fun notLowercaseLike(value: String?) {
+            if (!value.isNullOrBlank()) {
+                nodes += ConditionNode(ColumnCondition(path, CompareOp.NOT_LOWERCASE_LIKE, value))
+            }
+        }
+
         infix fun inList(values: List<*>?) {
             if (!values.isNullOrEmpty()) {
                 nodes += ConditionNode(ColumnCondition(path, CompareOp.IN, values))
             }
         }
+
+        infix fun <T : Comparable<T>> between(range: ClosedRange<T>?) {
+            if (range != null) {
+                nodes += ConditionNode(ColumnCondition(path, CompareOp.BETWEEN, range))
+            }
+        }
+
+        infix fun gt(value: Comparable<*>?) {
+            if (value != null) {
+                nodes += ConditionNode(ColumnCondition(path, CompareOp.GT, value))
+            }
+        }
+
+        infix fun gte(value: Comparable<*>?) {
+            if (value != null) {
+                nodes += ConditionNode(ColumnCondition(path, CompareOp.GTE, value))
+            }
+        }
+
+        infix fun lt(value: Comparable<*>?) {
+            if (value != null) {
+                nodes += ConditionNode(ColumnCondition(path, CompareOp.LT, value))
+            }
+        }
+
+        infix fun lte(value: Comparable<*>?) {
+            if (value != null) {
+                nodes += ConditionNode(ColumnCondition(path, CompareOp.LTE, value))
+            }
+        }
+
+        fun isEmpty() {
+            nodes += ConditionNode(ColumnCondition(path, CompareOp.IS_EMPTY))
+        }
+
+        fun isNotEmpty() {
+            nodes += ConditionNode(ColumnCondition(path, CompareOp.IS_NOT_EMPTY))
+        }
+
+        fun isTrue() {
+            nodes += ConditionNode(ColumnCondition(path, CompareOp.IS_TRUE))
+        }
+
+        fun isFalse() {
+            nodes += ConditionNode(ColumnCondition(path, CompareOp.IS_FALSE))
+        }
+
     }
 
     fun and(block: LogicalBuilder<T>.() -> Unit) {
@@ -166,6 +236,7 @@ class ConditionBuilder<T> {
         }
     }
 
+    @Suppress("CyclomaticComplexMethod")
     private fun ColumnCondition<*>.toPredicate(
         from: From<*, *>,
         cb: CriteriaBuilder
@@ -177,13 +248,65 @@ class ConditionBuilder<T> {
             CompareOp.IS_NULL -> cb.isNull(pathObj)
             CompareOp.NOT_NULL -> cb.isNotNull(pathObj)
             CompareOp.LIKE -> cb.like(
-                cb.lower(pathObj.`as`(String::class.java)),
-                "%${(value as String).lowercase()}%"
+                pathObj.`as`(String::class.java),
+                value as String
             )
+
+            CompareOp.NOT_LIKE -> cb.notLike(
+                pathObj.`as`(String::class.java),
+                value as String
+            )
+
+            CompareOp.LOWERCASE_LIKE -> cb.like(
+                cb.lower(pathObj.`as`(String::class.java)),
+                (value as String).lowercase()
+            )
+
+            CompareOp.NOT_LOWERCASE_LIKE -> cb.notLike(
+                cb.lower(pathObj.`as`(String::class.java)),
+                (value as String).lowercase()
+            )
+
             CompareOp.IN -> cb.`in`(pathObj).apply {
                 (value as List<*>).forEach { v -> value(v) }
             }
-        }
+
+            CompareOp.BETWEEN -> {
+                @Suppress("UNCHECKED_CAST")
+                val range = value as ClosedRange<Comparable<Any>>
+                @Suppress("UNCHECKED_CAST")
+                cb.between(
+                    pathObj as Path<Comparable<Any>>,
+                    range.start,
+                    range.endInclusive
+                )
+            }
+
+            CompareOp.GT -> cb.greaterThan(
+                pathObj as Path<Comparable<Any>>,
+                value as Comparable<Any>
+            )
+
+            CompareOp.GTE -> cb.greaterThanOrEqualTo(
+                pathObj as Path<Comparable<Any>>,
+                value as Comparable<Any>
+            )
+
+            CompareOp.LT -> cb.lessThan(
+                pathObj as Path<Comparable<Any>>,
+                value as Comparable<Any>
+            )
+
+            CompareOp.LTE -> cb.lessThanOrEqualTo(
+                pathObj as Path<Comparable<Any>>,
+                value as Comparable<Any>
+            )
+
+            CompareOp.IS_EMPTY -> cb.isEmpty(pathObj as Path<Collection<*>>)
+            CompareOp.IS_NOT_EMPTY -> cb.isNotEmpty(pathObj as Path<Collection<*>>)
+            CompareOp.IS_TRUE -> cb.isTrue(pathObj as Path<Boolean>)
+            CompareOp.IS_FALSE -> cb.isFalse(pathObj as Path<Boolean>)
+    }
     }
 
     private fun getOrCreateJoin(from: From<*, *>, path: String): From<*, *> {
