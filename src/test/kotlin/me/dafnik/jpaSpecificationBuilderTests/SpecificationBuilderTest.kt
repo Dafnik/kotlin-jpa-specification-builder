@@ -90,6 +90,25 @@ class SpecificationBuilderTest(
     }
 
     @Test
+    fun `like should be ignored`() {
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    col(User::name) like "%%"
+                }
+            }
+        })).hasSize(5)
+
+        assertThat(userRepository.findAll(buildSpecification<User> {
+            where {
+                and {
+                    col(User::name) like "%${null}%"
+                }
+            }
+        })).hasSize(5)
+    }
+
+    @Test
     fun `ilike should match case-insensitive`() {
         assertThat(userRepository.findAll(buildSpecification<User> {
             where {

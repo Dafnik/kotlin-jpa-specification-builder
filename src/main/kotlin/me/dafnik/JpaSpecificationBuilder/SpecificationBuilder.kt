@@ -108,25 +108,25 @@ class LogicalBuilder<T> {
         }
 
         infix fun like(value: String?) {
-            if (!value.isNullOrBlank() && value.trim() != "%%") {
+            if (!value.isNullOrBlank() && value.trim() != "%%" && value.trim() != "%null%") {
                 nodes += ConditionNode(ColumnCondition(path, CompareOp.LIKE, value))
             }
         }
 
         infix fun notLike(value: String?) {
-            if (!value.isNullOrBlank() && value.trim() != "%%") {
+            if (!value.isNullOrBlank() && value.trim() != "%%" && value.trim() != "%null%") {
                 nodes += ConditionNode(ColumnCondition(path, CompareOp.NOT_LIKE, value))
             }
         }
 
         infix fun lowercaseLike(value: String?) {
-            if (!value.isNullOrBlank() && value.trim() != "%%") {
+            if (!value.isNullOrBlank() && value.trim() != "%%" && value.trim() != "%null%") {
                 nodes += ConditionNode(ColumnCondition(path, CompareOp.LOWERCASE_LIKE, value))
             }
         }
 
         infix fun notLowercaseLike(value: String?) {
-            if (!value.isNullOrBlank() && value.trim() != "%%") {
+            if (!value.isNullOrBlank() && value.trim() != "%%" && value.trim() != "%null%") {
                 nodes += ConditionNode(ColumnCondition(path, CompareOp.NOT_LOWERCASE_LIKE, value))
             }
         }
