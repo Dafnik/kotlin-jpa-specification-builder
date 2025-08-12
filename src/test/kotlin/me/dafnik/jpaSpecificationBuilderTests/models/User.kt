@@ -20,4 +20,5 @@ data class User(
     val department: Department? = null,
 
     val active: Boolean = true,
+    val previousActive: Boolean = true,
 )

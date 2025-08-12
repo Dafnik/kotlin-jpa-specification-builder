@@ -19,10 +19,15 @@ enum class OrderDirection {
     ASC, DESC
 }
 
+sealed interface ValueOrColumn {
+    data class Literal(val value: Any?) : ValueOrColumn
+    data class ColumnRef(val path: String) : ValueOrColumn
+}
+
 class ColumnCondition<T>(
     val path: String,
     val op: CompareOp,
-    val value: Any? = null
+    val value: ValueOrColumn? = null
 )
 
 sealed interface PredicateNode<T>
@@ -32,7 +37,7 @@ class OrNode<T>(val children: List<PredicateNode<*>>) : PredicateNode<T>
 class ConditionNode<T>(val condition: ColumnCondition<T>) : PredicateNode<T>
 class JoinNode<P, C>(val path: String, val builder: ConditionBuilder<C>) : PredicateNode<P>
 
-// DSL markers for better IntelliJ suggestions
+// DSL markers
 @DslMarker
 annotation class WhereDsl
 
@@ -86,103 +91,53 @@ class LogicalBuilder<T> {
 
     @Suppress("TooManyFunctions")
     @ColumnDsl
-    inner class ColumnBuilder(private val path: String) {
-        infix fun eq(value: Any?) {
-            if (value != null) {
-                nodes += ConditionNode(ColumnCondition(path, CompareOp.EQ, value))
-            }
+    inner class ColumnBuilder(internal val path: String) {
+
+        private fun addCondition(op: CompareOp, value: Any?) {
+            nodes += ConditionNode(ColumnCondition(path, op, ValueOrColumn.Literal(value)))
         }
 
-        infix fun notEq(value: Any?) {
-            if (value != null) {
-                nodes += ConditionNode(ColumnCondition(path, CompareOp.NOT_EQ, value))
-            }
+        private fun addCondition(op: CompareOp, other: ColumnBuilder) {
+            nodes += ConditionNode(ColumnCondition(path, op, ValueOrColumn.ColumnRef(other.path)))
         }
 
-        fun isNull() {
-            nodes += ConditionNode(ColumnCondition(path, CompareOp.IS_NULL))
-        }
+        infix fun eq(value: Any) = addCondition(CompareOp.EQ, value)
+        infix fun eq(other: ColumnBuilder) = addCondition(CompareOp.EQ, other)
 
-        fun notNull() {
-            nodes += ConditionNode(ColumnCondition(path, CompareOp.NOT_NULL))
-        }
+        infix fun notEq(value: Any) = addCondition(CompareOp.NOT_EQ, value)
+        infix fun notEq(other: ColumnBuilder) = addCondition(CompareOp.NOT_EQ, other)
 
-        infix fun like(value: String?) {
-            if (!value.isNullOrBlank() && value.trim() != "%%" && value.trim() != "%null%") {
-                nodes += ConditionNode(ColumnCondition(path, CompareOp.LIKE, value))
-            }
-        }
+        fun isNull() = addCondition(CompareOp.IS_NULL, null)
+        fun notNull() = addCondition(CompareOp.NOT_NULL, null)
 
-        infix fun notLike(value: String?) {
-            if (!value.isNullOrBlank() && value.trim() != "%%" && value.trim() != "%null%") {
-                nodes += ConditionNode(ColumnCondition(path, CompareOp.NOT_LIKE, value))
-            }
-        }
+        infix fun like(value: String) = addCondition(CompareOp.LIKE, value)
 
-        infix fun lowercaseLike(value: String?) {
-            if (!value.isNullOrBlank() && value.trim() != "%%" && value.trim() != "%null%") {
-                nodes += ConditionNode(ColumnCondition(path, CompareOp.LOWERCASE_LIKE, value))
-            }
-        }
+        infix fun notLike(value: String) = addCondition(CompareOp.NOT_LIKE, value)
 
-        infix fun notLowercaseLike(value: String?) {
-            if (!value.isNullOrBlank() && value.trim() != "%%" && value.trim() != "%null%") {
-                nodes += ConditionNode(ColumnCondition(path, CompareOp.NOT_LOWERCASE_LIKE, value))
-            }
-        }
+        infix fun lowercaseLike(value: String) = addCondition(CompareOp.LOWERCASE_LIKE, value)
 
-        infix fun inList(values: List<*>?) {
-            if (!values.isNullOrEmpty()) {
-                nodes += ConditionNode(ColumnCondition(path, CompareOp.IN, values))
-            }
-        }
+        infix fun notLowercaseLike(value: String) = addCondition(CompareOp.NOT_LOWERCASE_LIKE, value)
 
-        infix fun <T : Comparable<T>> between(range: ClosedRange<T>?) {
-            if (range != null) {
-                nodes += ConditionNode(ColumnCondition(path, CompareOp.BETWEEN, range))
-            }
-        }
+        infix fun inList(values: List<*>) = addCondition(CompareOp.IN, values)
 
-        infix fun gt(value: Comparable<*>?) {
-            if (value != null) {
-                nodes += ConditionNode(ColumnCondition(path, CompareOp.GT, value))
-            }
-        }
+        infix fun between(range: ClosedRange<out Comparable<*>>) = addCondition(CompareOp.BETWEEN, range)
 
-        infix fun gte(value: Comparable<*>?) {
-            if (value != null) {
-                nodes += ConditionNode(ColumnCondition(path, CompareOp.GTE, value))
-            }
-        }
+        infix fun gt(value: Comparable<*>) = addCondition(CompareOp.GT, value)
+        infix fun gt(other: ColumnBuilder) = addCondition(CompareOp.GT, other)
 
-        infix fun lt(value: Comparable<*>?) {
-            if (value != null) {
-                nodes += ConditionNode(ColumnCondition(path, CompareOp.LT, value))
-            }
-        }
+        infix fun gte(value: Comparable<*>) = addCondition(CompareOp.GTE, value)
+        infix fun gte(other: ColumnBuilder) = addCondition(CompareOp.GTE, other)
 
-        infix fun lte(value: Comparable<*>?) {
-            if (value != null) {
-                nodes += ConditionNode(ColumnCondition(path, CompareOp.LTE, value))
-            }
-        }
+        infix fun lt(value: Comparable<*>) = addCondition(CompareOp.LT, value)
+        infix fun lt(other: ColumnBuilder) = addCondition(CompareOp.LT, other)
 
-        fun isEmpty() {
-            nodes += ConditionNode(ColumnCondition(path, CompareOp.IS_EMPTY))
-        }
+        infix fun lte(value: Comparable<*>) = addCondition(CompareOp.LTE, value)
+        infix fun lte(other: ColumnBuilder) = addCondition(CompareOp.LTE, other)
 
-        fun isNotEmpty() {
-            nodes += ConditionNode(ColumnCondition(path, CompareOp.IS_NOT_EMPTY))
-        }
-
-        fun isTrue() {
-            nodes += ConditionNode(ColumnCondition(path, CompareOp.IS_TRUE))
-        }
-
-        fun isFalse() {
-            nodes += ConditionNode(ColumnCondition(path, CompareOp.IS_FALSE))
-        }
-
+        fun isEmpty() = addCondition(CompareOp.IS_EMPTY, null)
+        fun isNotEmpty() = addCondition(CompareOp.IS_NOT_EMPTY, null)
+        fun isTrue() = addCondition(CompareOp.IS_TRUE, null)
+        fun isFalse() = addCondition(CompareOp.IS_FALSE, null)
     }
 
     fun and(block: LogicalBuilder<T>.() -> Unit) {
@@ -236,77 +191,91 @@ class ConditionBuilder<T> {
         }
     }
 
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("UNCHECKED_CAST", "CyclomaticComplexMethod", "LongMethod")
     private fun ColumnCondition<*>.toPredicate(
         from: From<*, *>,
         cb: CriteriaBuilder
     ): Predicate {
         val pathObj = resolvePath(from, path)
+
+        fun resolveValueOrColumn(v: ValueOrColumn?): Any? = when (v) {
+            is ValueOrColumn.Literal -> v.value
+            is ValueOrColumn.ColumnRef -> resolvePath(from, v.path)
+            null -> null
+        }
+
+        val rhs = resolveValueOrColumn(value)
+
         return when (op) {
-            CompareOp.EQ -> cb.equal(pathObj, value)
-            CompareOp.NOT_EQ -> cb.notEqual(pathObj, value)
+            CompareOp.EQ -> cb.equal(pathObj, rhs)
+            CompareOp.NOT_EQ -> cb.notEqual(pathObj, rhs)
             CompareOp.IS_NULL -> cb.isNull(pathObj)
             CompareOp.NOT_NULL -> cb.isNotNull(pathObj)
-            CompareOp.LIKE -> cb.like(
-                pathObj.`as`(String::class.java),
-                value as String
+            CompareOp.LIKE -> cb.like(pathObj.`as`(String::class.java), rhs as String)
+            CompareOp.NOT_LIKE -> cb.notLike(pathObj.`as`(String::class.java), rhs as String)
+            CompareOp.LOWERCASE_LIKE -> cb.like(cb.lower(pathObj.`as`(String::class.java)), (rhs as String).lowercase())
+            CompareOp.NOT_LOWERCASE_LIKE ->
+                cb.notLike(cb.lower(pathObj.`as`(String::class.java)), (rhs as String).lowercase())
+
+            CompareOp.IN -> cb.`in`(pathObj).apply { (rhs as List<*>).forEach { v -> value(v) } }
+            CompareOp.BETWEEN -> cb.between(
+                pathObj as Path<Comparable<Any>>,
+                (rhs as ClosedRange<*>).start as Comparable<Any>,
+                rhs.endInclusive as Comparable<Any>
             )
 
-            CompareOp.NOT_LIKE -> cb.notLike(
-                pathObj.`as`(String::class.java),
-                value as String
-            )
-
-            CompareOp.LOWERCASE_LIKE -> cb.like(
-                cb.lower(pathObj.`as`(String::class.java)),
-                (value as String).lowercase()
-            )
-
-            CompareOp.NOT_LOWERCASE_LIKE -> cb.notLike(
-                cb.lower(pathObj.`as`(String::class.java)),
-                (value as String).lowercase()
-            )
-
-            CompareOp.IN -> cb.`in`(pathObj).apply {
-                (value as List<*>).forEach { v -> value(v) }
-            }
-
-            CompareOp.BETWEEN -> {
-                @Suppress("UNCHECKED_CAST")
-                val range = value as ClosedRange<Comparable<Any>>
-                @Suppress("UNCHECKED_CAST")
-                cb.between(
+            CompareOp.GT -> when (rhs) {
+                is Path<*> -> cb.greaterThan(
                     pathObj as Path<Comparable<Any>>,
-                    range.start,
-                    range.endInclusive
+                    rhs as Path<Comparable<Any>>
+                )
+
+                else -> cb.greaterThan(
+                    pathObj as Path<Comparable<Any>>,
+                    rhs as Comparable<Any>
                 )
             }
 
-            CompareOp.GT -> cb.greaterThan(
-                pathObj as Path<Comparable<Any>>,
-                value as Comparable<Any>
-            )
+            CompareOp.GTE -> when (rhs) {
+                is Path<*> -> cb.greaterThanOrEqualTo(
+                    pathObj as Path<Comparable<Any>>,
+                    rhs as Path<Comparable<Any>>
+                )
 
-            CompareOp.GTE -> cb.greaterThanOrEqualTo(
-                pathObj as Path<Comparable<Any>>,
-                value as Comparable<Any>
-            )
+                else -> cb.greaterThanOrEqualTo(
+                    pathObj as Path<Comparable<Any>>,
+                    rhs as Comparable<Any>
+                )
+            }
 
-            CompareOp.LT -> cb.lessThan(
-                pathObj as Path<Comparable<Any>>,
-                value as Comparable<Any>
-            )
+            CompareOp.LT -> when (rhs) {
+                is Path<*> -> cb.lessThan(
+                    pathObj as Path<Comparable<Any>>,
+                    rhs as Path<Comparable<Any>>
+                )
 
-            CompareOp.LTE -> cb.lessThanOrEqualTo(
-                pathObj as Path<Comparable<Any>>,
-                value as Comparable<Any>
-            )
+                else -> cb.lessThan(
+                    pathObj as Path<Comparable<Any>>,
+                    rhs as Comparable<Any>
+                )
+            }
 
+            CompareOp.LTE -> when (rhs) {
+                is Path<*> -> cb.lessThanOrEqualTo(
+                    pathObj as Path<Comparable<Any>>,
+                    rhs as Path<Comparable<Any>>
+                )
+
+                else -> cb.lessThanOrEqualTo(
+                    pathObj as Path<Comparable<Any>>,
+                    rhs as Comparable<Any>
+                )
+            }
             CompareOp.IS_EMPTY -> cb.isEmpty(pathObj as Path<Collection<*>>)
             CompareOp.IS_NOT_EMPTY -> cb.isNotEmpty(pathObj as Path<Collection<*>>)
             CompareOp.IS_TRUE -> cb.isTrue(pathObj as Path<Boolean>)
             CompareOp.IS_FALSE -> cb.isFalse(pathObj as Path<Boolean>)
-    }
+        }
     }
 
     private fun getOrCreateJoin(from: From<*, *>, path: String): From<*, *> {
