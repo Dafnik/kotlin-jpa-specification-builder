@@ -7,6 +7,7 @@ import jakarta.persistence.criteria.From
 import jakarta.persistence.criteria.JoinType
 import jakarta.persistence.criteria.Path
 import jakarta.persistence.criteria.Predicate
+import jakarta.persistence.criteria.Root
 import org.springframework.data.jpa.domain.Specification
 import kotlin.reflect.KProperty1
 
@@ -36,6 +37,7 @@ class AndNode<T>(val children: List<PredicateNode<*>>) : PredicateNode<T>
 class OrNode<T>(val children: List<PredicateNode<*>>) : PredicateNode<T>
 class ConditionNode<T>(val condition: ColumnCondition<T>) : PredicateNode<T>
 class JoinNode<P, C>(val path: String, val builder: ConditionBuilder<C>) : PredicateNode<P>
+class FetchNode<P>(val path: String, val joinType: JoinType = JoinType.LEFT) : PredicateNode<P>
 
 // DSL markers
 @DslMarker
@@ -72,6 +74,14 @@ class WhereBuilder<T> {
         nodes += JoinNode(path, childBuilder.toConditionBuilder())
     }
 
+    fun <R> fetch(prop: KProperty1<T, R>, joinType: JoinType = JoinType.LEFT) {
+        nodes += FetchNode<T>(prop.name, joinType)
+    }
+
+    fun <R> fetch(path: String, joinType: JoinType = JoinType.LEFT) {
+        nodes += FetchNode<T>(path, joinType)
+    }
+
     internal fun toConditionBuilder(): ConditionBuilder<T> {
         val cb = ConditionBuilder<T>()
         cb.nodes.addAll(nodes)
@@ -79,6 +89,7 @@ class WhereBuilder<T> {
     }
 }
 
+@Suppress("TooManyFunctions")
 @LogicalDsl
 class LogicalBuilder<T> {
     internal val nodes = mutableListOf<PredicateNode<T>>()
@@ -161,6 +172,14 @@ class LogicalBuilder<T> {
         nodes += JoinNode(path, childBuilder.toConditionBuilder())
     }
 
+    fun <R> fetch(prop: KProperty1<T, R>, joinType: JoinType = JoinType.LEFT) {
+        nodes += FetchNode<T>(prop.name, joinType)
+    }
+
+    fun <R> fetch(path: String, joinType: JoinType = JoinType.LEFT) {
+        nodes += FetchNode<T>(path, joinType)
+    }
+
     internal fun toConditionBuilder(): ConditionBuilder<T> {
         val cb = ConditionBuilder<T>()
         cb.nodes.addAll(nodes)
@@ -186,8 +205,15 @@ class ConditionBuilder<T> {
         is AndNode<*> -> cb.and(*children.mapNotNull { it.toPredicate(from, cb) }.toTypedArray())
         is OrNode<*> -> cb.or(*children.mapNotNull { it.toPredicate(from, cb) }.toTypedArray())
         is JoinNode<*, *> -> {
-            val join = getOrCreateJoin(from, this.path)
+            val join = getOrCreateJoin(from, path)
             this.builder.build(join, cb)
+        }
+        is FetchNode<*> -> {
+            // Only apply fetch if not a count query
+            if (from is Root<*>) {
+                from.fetch<Any, Any>(path, joinType)
+            }
+            null
         }
     }
 
