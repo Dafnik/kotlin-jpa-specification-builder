@@ -3,6 +3,7 @@
 package me.dafnik.JpaSpecificationBuilder
 
 import jakarta.persistence.criteria.CriteriaBuilder
+import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.FetchParent
 import jakarta.persistence.criteria.From
 import jakarta.persistence.criteria.JoinType
@@ -192,29 +193,35 @@ class ConditionBuilder<T> {
     internal val nodes = mutableListOf<PredicateNode<T>>()
 
     @Suppress("SpreadOperator")
-    internal fun build(from: From<*, *>, cb: CriteriaBuilder): Predicate? {
+    internal fun build(from: From<*, *>, query: CriteriaQuery<*>, cb: CriteriaBuilder): Predicate? {
         if (nodes.isEmpty()) return null
-        return cb.and(*nodes.mapNotNull { it.toPredicate(from, cb) }.toTypedArray())
+        return cb.and(*nodes.mapNotNull { it.toPredicate(from, query, cb) }.toTypedArray())
     }
 
     @Suppress("SpreadOperator")
     private fun PredicateNode<*>.toPredicate(
         from: From<*, *>,
+        query: CriteriaQuery<*>,
         cb: CriteriaBuilder
     ): Predicate? = when (this) {
         is ConditionNode<*> -> condition.toPredicate(from, cb)
-        is AndNode<*> -> cb.and(*children.mapNotNull { it.toPredicate(from, cb) }.toTypedArray())
-        is OrNode<*> -> cb.or(*children.mapNotNull { it.toPredicate(from, cb) }.toTypedArray())
+        is AndNode<*> -> cb.and(*children.mapNotNull { it.toPredicate(from, query, cb) }.toTypedArray())
+        is OrNode<*> -> cb.or(*children.mapNotNull { it.toPredicate(from, query, cb) }.toTypedArray())
         is JoinNode<*, *> -> {
             val join = getOrCreateJoin(from, path)
-            this.builder.build(join, cb)
+            this.builder.build(join, query, cb)
         }
+
         is FetchNode<*> -> {
-            if (from is Root<*>) {
+            // Only apply fetch joins if not a count query
+            if (
+                from is Root<*>
+                && query.resultType != java.lang.Long::class.java
+                && query.resultType != Long::class.java) {
                 var current: FetchParent<*, *> = from
                 val parts = path.split('.')
                 for (part in parts) {
-                    current = current.fetch<Any, Any>(part, this.joinType)
+                    current = current.fetch<Any, Any>(part, joinType)
                 }
             }
             null
@@ -301,6 +308,7 @@ class ConditionBuilder<T> {
                     rhs as Comparable<Any>
                 )
             }
+
             CompareOp.IS_EMPTY -> cb.isEmpty(pathObj as Path<Collection<*>>)
             CompareOp.IS_NOT_EMPTY -> cb.isNotEmpty(pathObj as Path<Collection<*>>)
             CompareOp.IS_TRUE -> cb.isTrue(pathObj as Path<Boolean>)
@@ -361,7 +369,7 @@ class SpecificationBuilder<T> {
             )
         }
 
-        whereBuilder?.toConditionBuilder()?.build(root, cb)
+        whereBuilder?.toConditionBuilder()?.build(root, query, cb)
     }
 }
 
