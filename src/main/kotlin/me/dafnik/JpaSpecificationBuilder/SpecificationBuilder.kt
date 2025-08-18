@@ -3,6 +3,7 @@
 package me.dafnik.JpaSpecificationBuilder
 
 import jakarta.persistence.criteria.CriteriaBuilder
+import jakarta.persistence.criteria.FetchParent
 import jakarta.persistence.criteria.From
 import jakarta.persistence.criteria.JoinType
 import jakarta.persistence.criteria.Path
@@ -209,9 +210,12 @@ class ConditionBuilder<T> {
             this.builder.build(join, cb)
         }
         is FetchNode<*> -> {
-            // Only apply fetch if not a count query
             if (from is Root<*>) {
-                from.fetch<Any, Any>(path, joinType)
+                var current: FetchParent<*, *> = from
+                val parts = path.split('.')
+                for (part in parts) {
+                    current = current.fetch<Any, Any>(part, this.joinType)
+                }
             }
             null
         }
