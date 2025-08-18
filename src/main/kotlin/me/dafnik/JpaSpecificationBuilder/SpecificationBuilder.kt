@@ -220,13 +220,12 @@ class ConditionBuilder<T> {
                     continue
                 }
 
-                if (fetch && isLast && current is Root<*>) {
-                    // Add fetch
+                // Always create a Join
+                current = current.join<Any, Any>(part, joinType)
+
+                // If fetch requested, also add fetch on the same path
+                if (fetch && isLast && currentFetch is Root<*>) {
                     currentFetch.fetch<Any, Any>(part, joinType)
-                    // Also create join for filtering
-                    current = current.join<Any, Any>(part, joinType)
-                } else {
-                    current = current.join<Any, Any>(part, joinType)
                 }
 
                 currentFetch = current
@@ -248,6 +247,7 @@ class ConditionBuilder<T> {
             val join = getOrCreateAssociation(from, path, JoinType.LEFT, fetch = false)
             this.builder.build(join, query, cb)
         }
+
         is FetchNode<*> -> {
             if (
                 from is Root<*>
