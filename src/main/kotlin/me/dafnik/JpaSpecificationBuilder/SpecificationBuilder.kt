@@ -392,7 +392,7 @@ class SpecificationBuilder<T> {
             )
         }
 
-        whereBuilder?.toConditionBuilder()?.build(root, query, cb)
+        whereBuilder?.toConditionBuilder()?.build(root, query!!, cb)
     }
 }
 
