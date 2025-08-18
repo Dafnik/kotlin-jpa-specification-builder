@@ -191,46 +191,35 @@ class LogicalBuilder<T> {
 
 class ConditionBuilder<T> {
     internal val nodes = mutableListOf<PredicateNode<T>>()
-    private val associationCache = mutableMapOf<String, From<*, *>>() // unified cache
+    private val joinCache = mutableMapOf<String, From<*, *>>()
+    private val fetchCache = mutableSetOf<String>()
 
     internal fun build(from: From<*, *>, query: CriteriaQuery<*>, cb: CriteriaBuilder): Predicate? {
         if (nodes.isEmpty()) return null
         return cb.and(*nodes.mapNotNull { it.toPredicate(from, query, cb) }.toTypedArray())
     }
 
-    private fun getOrCreateAssociation(
-        from: From<*, *>,
-        path: String,
-        joinType: JoinType,
-        fetch: Boolean = false
-    ): From<*, *> {
-        return associationCache.getOrPut(path) {
+    private fun getOrCreateJoin(from: From<*, *>, path: String): From<*, *> {
+        return joinCache.getOrPut(path) {
             val parts = path.split('.')
             var current: From<*, *> = from
-            var currentFetch: FetchParent<*, *> = from
-
-            for ((i, part) in parts.withIndex()) {
-                val isLast = i == parts.lastIndex
-
-                // Try to reuse existing join
+            for (part in parts) {
                 val existing = current.joins.find { it.attribute.name == part } as? From<*, *>
-                if (existing != null) {
-                    current = existing
-                    currentFetch = existing
-                    continue
-                }
-
-                // Always create a Join
-                current = current.join<Any, Any>(part, joinType)
-
-                // If fetch requested, also add fetch on the same path
-                if (fetch && isLast && currentFetch is Root<*>) {
-                    currentFetch.fetch<Any, Any>(part, joinType)
-                }
-
-                currentFetch = current
+                current = existing ?: current.join<Any, Any>(part, JoinType.LEFT)
             }
             current
+        }
+    }
+
+    private fun getOrCreateFetch(root: Root<*>, path: String, joinType: JoinType) {
+        if (fetchCache.contains(path)) return
+        fetchCache += path
+
+        var current: FetchParent<*, *> = root
+        val parts = path.split('.')
+        for (part in parts) {
+            val existing = current.fetches.find { it.attribute.name == part }
+            current = existing ?: current.fetch<Any, Any>(part, joinType)
         }
     }
 
@@ -244,17 +233,16 @@ class ConditionBuilder<T> {
         is AndNode<*> -> cb.and(*children.mapNotNull { it.toPredicate(from, query, cb) }.toTypedArray())
         is OrNode<*> -> cb.or(*children.mapNotNull { it.toPredicate(from, query, cb) }.toTypedArray())
         is JoinNode<*, *> -> {
-            val join = getOrCreateAssociation(from, path, JoinType.LEFT, fetch = false)
+            val join = getOrCreateJoin(from, path)
             this.builder.build(join, query, cb)
         }
-
         is FetchNode<*> -> {
             if (
                 from is Root<*>
                 && query.resultType != java.lang.Long::class.java
                 && query.resultType != Long::class.java
             ) {
-                getOrCreateAssociation(from, path, joinType, fetch = true)
+                getOrCreateFetch(from, path, joinType)
             }
             null
         }
@@ -392,7 +380,7 @@ class SpecificationBuilder<T> {
             )
         }
 
-        whereBuilder?.toConditionBuilder()?.build(root, query!!, cb)
+        whereBuilder?.toConditionBuilder()?.build(root, query, cb)
     }
 }
 
