@@ -1,5 +1,7 @@
 package me.dafnik.jpaSpecificationBuilderTests
 
+import jakarta.persistence.EntityManager
+import jakarta.persistence.PersistenceUnitUtil
 import jakarta.transaction.Transactional
 import me.dafnik.JpaSpecificationBuilder.OrderDirection
 import me.dafnik.JpaSpecificationBuilder.buildSpecification
@@ -8,17 +10,20 @@ import me.dafnik.jpaSpecificationBuilderTests.models.User
 import me.dafnik.jpaSpecificationBuilderTests.repositories.DepartmentRepository
 import me.dafnik.jpaSpecificationBuilderTests.repositories.UserRepository
 import org.assertj.core.api.Assertions.assertThat
+import org.hibernate.SessionFactory
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.annotation.DirtiesContext
 
 @SpringBootTest(classes = [TestConfig::class])
 @Transactional
 class SpecificationBuilderTest(
     @Autowired val userRepository: UserRepository,
-    @Autowired val departmentRepository: DepartmentRepository
+    @Autowired val departmentRepository: DepartmentRepository,
+    @Autowired val entityManager: EntityManager
 ) {
 
     private lateinit var depEng: Department
@@ -568,6 +573,97 @@ class SpecificationBuilderTest(
                 }
             })
             assertThat(results).allMatch { (it.department?.id ?: 0) <= (it.id ?: 0) }
+        }
+    }
+
+    @Nested
+    @DirtiesContext // reset Hibernate statistics between tests
+    inner class FetchJoins {
+        @Test
+        fun `fetch join should eagerly load department`() {
+            val spec = buildSpecification {
+                where {
+                    fetch(User::department) // fetch join
+                }
+            }
+
+            val users = userRepository.findAll(spec)
+            assertThat(users).isNotEmpty
+
+            val util: PersistenceUnitUtil = entityManager.entityManagerFactory.persistenceUnitUtil
+
+            users.forEach { user ->
+                assertThat(util.isLoaded(user.department))
+                    .describedAs("Department should be eagerly fetched")
+                    .isTrue()
+            }
+        }
+
+        @Test
+        fun `fetch join should eagerly load users collection`() {
+            val spec = buildSpecification {
+                where {
+                    fetch(Department::users)
+                }
+            }
+
+            val departments = departmentRepository.findAll(spec)
+            assertThat(departments).isNotEmpty
+
+            val util: PersistenceUnitUtil = entityManager.entityManagerFactory.persistenceUnitUtil
+
+            departments.forEach { dep ->
+                assertThat(util.isLoaded(dep.users))
+                    .describedAs("Users collection should be eagerly fetched")
+                    .isTrue()
+            }
+        }
+
+        @Test
+        fun `fetch join should not trigger N+1 queries`() {
+            // unwrap Hibernate SessionFactory to get statistics
+            val sessionFactory = entityManager
+                .entityManagerFactory
+                .unwrap(SessionFactory::class.java)
+
+            val stats = sessionFactory.statistics
+            stats.clear()
+
+            val users = userRepository.findAll(
+                buildSpecification<User> {
+                    where {
+                        fetch(User::department)
+                    }
+                }
+            )
+
+            users.forEach { it.department?.name }
+
+            val queryCount = stats.prepareStatementCount
+
+            assertThat(queryCount)
+                .describedAs("Fetch join should avoid N+1 queries")
+                .isEqualTo(1)
+        }
+
+        @Test
+        fun `default query should trigger N+1 when accessing department`() {
+            val sessionFactory = entityManager
+                .entityManagerFactory
+                .unwrap(SessionFactory::class.java)
+            val stats = sessionFactory.statistics
+            stats.clear()
+
+            entityManager.clear()
+
+            val users = userRepository.findAll(buildSpecification<User> { })
+
+            users.forEach { it.department?.name }
+
+            val queryCount = stats.prepareStatementCount
+            assertThat(queryCount)
+                .describedAs("Default lazy loading should cause N+1 queries")
+                .isEqualTo(4)
         }
     }
 

@@ -13,6 +13,6 @@ data class Department(
     val id: Long? = null,
     val name: String? = null,
 
-    @OneToMany(fetch = FetchType.EAGER)
+    @OneToMany(fetch = FetchType.LAZY)
     val users: List<User> = emptyList(),
 )
