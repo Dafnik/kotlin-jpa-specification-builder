@@ -1,4 +1,4 @@
-@file:Suppress("PackageName")
+@file:Suppress("PackageName", "SpreadOperator")
 
 package me.dafnik.JpaSpecificationBuilder
 
@@ -191,14 +191,51 @@ class LogicalBuilder<T> {
 
 class ConditionBuilder<T> {
     internal val nodes = mutableListOf<PredicateNode<T>>()
+    private val associationCache = mutableMapOf<String, From<*, *>>() // unified cache
 
-    @Suppress("SpreadOperator")
     internal fun build(from: From<*, *>, query: CriteriaQuery<*>, cb: CriteriaBuilder): Predicate? {
         if (nodes.isEmpty()) return null
         return cb.and(*nodes.mapNotNull { it.toPredicate(from, query, cb) }.toTypedArray())
     }
 
-    @Suppress("SpreadOperator")
+    private fun getOrCreateAssociation(
+        from: From<*, *>,
+        path: String,
+        joinType: JoinType,
+        fetch: Boolean = false
+    ): From<*, *> {
+        return associationCache.getOrPut(path) {
+            val parts = path.split('.')
+            var current: From<*, *> = from
+            var currentFetch: FetchParent<*, *> = from
+
+            for ((i, part) in parts.withIndex()) {
+                val isLast = i == parts.lastIndex
+
+                // Try to reuse existing join
+                val existing = current.joins.find { it.attribute.name == part } as? From<*, *>
+                if (existing != null) {
+                    current = existing
+                    currentFetch = existing
+                    continue
+                }
+
+                if (fetch && isLast && current is Root<*>) {
+                    // Add fetch
+                    currentFetch.fetch<Any, Any>(part, joinType)
+                    // Also create join for filtering
+                    current = current.join<Any, Any>(part, joinType)
+                } else {
+                    current = current.join<Any, Any>(part, joinType)
+                }
+
+                currentFetch = current
+            }
+            current
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
     private fun PredicateNode<*>.toPredicate(
         from: From<*, *>,
         query: CriteriaQuery<*>,
@@ -208,21 +245,16 @@ class ConditionBuilder<T> {
         is AndNode<*> -> cb.and(*children.mapNotNull { it.toPredicate(from, query, cb) }.toTypedArray())
         is OrNode<*> -> cb.or(*children.mapNotNull { it.toPredicate(from, query, cb) }.toTypedArray())
         is JoinNode<*, *> -> {
-            val join = getOrCreateJoin(from, path)
+            val join = getOrCreateAssociation(from, path, JoinType.LEFT, fetch = false)
             this.builder.build(join, query, cb)
         }
-
         is FetchNode<*> -> {
-            // Only apply fetch joins if not a count query
             if (
                 from is Root<*>
                 && query.resultType != java.lang.Long::class.java
-                && query.resultType != Long::class.java) {
-                var current: FetchParent<*, *> = from
-                val parts = path.split('.')
-                for (part in parts) {
-                    current = current.fetch<Any, Any>(part, joinType)
-                }
+                && query.resultType != Long::class.java
+            ) {
+                getOrCreateAssociation(from, path, joinType, fetch = true)
             }
             null
         }
@@ -315,15 +347,6 @@ class ConditionBuilder<T> {
             CompareOp.IS_FALSE -> cb.isFalse(pathObj as Path<Boolean>)
         }
     }
-
-    private fun getOrCreateJoin(from: From<*, *>, path: String): From<*, *> {
-        val parts = path.split('.')
-        var current: From<*, *> = from
-        for (part in parts) {
-            current = current.join<Any, Any>(part, JoinType.LEFT)
-        }
-        return current
-    }
 }
 
 @WhereDsl
@@ -378,7 +401,8 @@ private fun resolvePath(from: From<*, *>, path: String): Path<*> {
     var current: From<*, *> = from
     for ((index, part) in parts.withIndex()) {
         if (index < parts.size - 1) {
-            current = current.join<Any, Any>(part, JoinType.LEFT)
+            val existing = current.joins.find { it.attribute.name == part } as? From<*, *>
+            current = existing ?: current.join<Any, Any>(part, JoinType.LEFT)
         } else {
             return current.get<Any>(part)
         }
