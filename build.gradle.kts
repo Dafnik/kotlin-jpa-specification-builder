@@ -29,7 +29,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-data-jpa")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 
-    testImplementation("dev.zacsweers.kctfork:core:0.12.1")
+    testImplementation("dev.zacsweers.kctfork:core:0.13.0")
 
     testRuntimeOnly("com.h2database:h2")
     testImplementation(kotlin("test"))
