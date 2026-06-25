@@ -13,7 +13,7 @@ plugins {
 
     id("io.gitlab.arturbosch.detekt") version "1.23.8"
 
-    id("org.springframework.boot") version "3.5.10"
+    id("org.springframework.boot") version "3.5.16"
     id("io.spring.dependency-management") version "1.1.7"
 }
 
