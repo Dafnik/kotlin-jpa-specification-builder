@@ -8,8 +8,8 @@ kotlin {
 plugins {
     `maven-publish`
 
-    kotlin("jvm") version "2.3.0"
-    kotlin("plugin.spring") version "2.3.0"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.spring") version "2.4.20"
 
     id("io.gitlab.arturbosch.detekt") version "1.23.8"
 
